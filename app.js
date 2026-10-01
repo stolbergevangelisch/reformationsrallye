@@ -1,0 +1,21 @@
+(() => {
+ const data=window.RALLYE, key='oh-orange-rallye-v1', $=id=>document.getElementById(id);
+ let done=0, requested=readStation(), persistent=true;
+ function readStation(){const n=Number(new URL(location.href).searchParams.get('station'));return Number.isInteger(n)&&n>=1&&n<=10?n:0;}
+ try{const n=JSON.parse(localStorage.getItem(key));done=Number.isInteger(n)&&n>=0&&n<=10?n:0;localStorage.setItem(key,JSON.stringify(done));}catch{persistent=false;}
+ function save(){try{localStorage.setItem(key,JSON.stringify(done));}catch{persistent=false;}storage();}
+ function storage(){$('storage').hidden=persistent;$('storage').textContent='Dein Browser kann den Fortschritt gerade nicht speichern. Lass diese Seite geöffnet und nutze die Weiter-Schaltflächen.';}
+ function go(n){requested=n;const u=new URL(location.href);if(n)u.searchParams.set('station',n);else u.searchParams.delete('station');history.pushState(null,'',u);render();$('content').focus();}
+ function text(tag,content,className){const e=document.createElement(tag);e.textContent=content;if(className)e.className=className;return e;}
+ function button(label,fn){const b=text('button',label);b.type='button';b.onclick=fn;return b;}
+ function hint(parent,content){parent.append(text('h2','Wo geht es weiter?'),text('p',content,'hint'));}
+ function render(){storage();$('count').textContent=`${done} / 10 Stationen geschafft`;$('letters').replaceChildren();data.stations.forEach((s,i)=>$('letters').append(text('span',i<done?s.letters[s.correct]:'_')));$('stations').replaceChildren();data.stations.forEach((s,i)=>{const n=i+1,b=button(`${n}${i<done?' ✓':''}`,()=>go(n));b.disabled=n>done+1;b.className=i<done?'done':'';b.setAttribute('aria-label',`Station ${n}${i<done?', geschafft':n===done+1?', als Nächstes':', noch gesperrt'}`);if(n===requested)b.setAttribute('aria-current','step');$('stations').append(b);});const c=$('content');c.replaceChildren();
+ if(!requested){c.append(text('h1',data.title),text('p',data.intro));if(done===10){finish(c);return;}hint(c,done?data.stations[done-1].hint:data.start);c.append(button(done?'Rallye fortsetzen':'Station 1 öffnen',()=>go(done+1)));return;}
+ if(requested>done+1){c.append(text('h1','Diese Station ist noch nicht dran.'),text('p',`Suche zunächst Station ${done+1}.`));hint(c,done?data.stations[done-1].hint:data.start);c.append(button(`Zur Station ${done+1}`,()=>go(done+1)));return;}
+ const s=data.stations[requested-1];c.append(text('p',`Station ${requested} / 10`,'eyebrow'),text('h1',s.q));if(requested<=done){success(c,s);return;}
+ const f=document.createElement('form'),field=document.createElement('fieldset');field.append(text('legend','Wähle eine Antwort.'));s.a.forEach((a,i)=>{const l=document.createElement('label'),r=document.createElement('input');r.type='radio';r.name='answer';r.value=i;l.append(r,text('span',`${'ABCD'[i]}) ${a}`));field.append(l);});const fb=text('p','','feedback');fb.setAttribute('role','status');fb.hidden=true;const submit=text('button','Antwort prüfen');submit.type='submit';f.append(field,fb,submit);f.onsubmit=e=>{e.preventDefault();const selected=new FormData(f).get('answer');fb.hidden=false;if(selected===null){fb.textContent='Bitte wähle eine Antwort.';return;}if(Number(selected)!==s.correct){fb.textContent='Noch nicht ganz. Schau genau hin und versuche es noch einmal.';return;}done=requested;save();render();$('content').focus();};c.append(f);
+ }
+ function success(c,s){const box=document.createElement('div');box.className='success';box.append(text('h2','Richtig!'),text('p','Dein Buchstabe:'),text('p',s.letters[s.correct],'letter'));c.append(box);if(requested===10){finish(c);return;}hint(c,s.hint);c.append(button(`Weiter zu Station ${requested+1}`,()=>go(requested+1)));}
+ function finish(c){c.append(text('h2','Alle zehn Stationen geschafft!'),text('p',data.finish,'hint'));}
+ $('reset').onclick=()=>{$('reset-confirm').hidden=false;};$('reset-no').onclick=()=>{$('reset-confirm').hidden=true;};$('reset-yes').onclick=()=>{done=0;save();$('reset-confirm').hidden=true;go(0);};window.addEventListener('popstate',()=>{requested=readStation();render();});window.addEventListener('storage',e=>{if(e.key===key){try{const n=JSON.parse(e.newValue);done=Number.isInteger(n)&&n>=0&&n<=10?n:0;}catch{done=0;}render();}});render();
+})();
